@@ -1,24 +1,35 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
 
 	"github.com/DennisPrudlik/gator/internal/config"
+	"github.com/DennisPrudlik/gator/internal/database"
+	_ "github.com/lib/pq"
 )
 
 func main() {
+
 	cfg, err := config.Read()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	s := state{cfg_ptr: &cfg}
+	db, err := sql.Open("postgres", cfg.DBURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	dbQueries := database.New(db)
+
+	s := state{db: dbQueries, cfg_ptr: &cfg}
 
 	c := commands{}
 	c.register("login", handlerLogin)
-
+	c.register("register", handlerRegister)
 	args := os.Args[1:]
 
 	if len(args) < 1 {
