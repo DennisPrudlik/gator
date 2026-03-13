@@ -63,6 +63,30 @@ func handlerRegister(s *state, cmd command) error {
 	return nil
 }
 
+func handlerReset(s *state, cmd command) error {
+	err := s.db.ResetUsers(context.Background())
+	if err != nil {
+		return err
+	}
+	fmt.Println("All users have been reset")
+	return nil
+}
+
+func handlerUsers(s *state, cmd command) error {
+	users, err := s.db.GetUsers(context.Background())
+	if err != nil {
+		return err
+	}
+	for _, user := range users {
+		if user.Name == s.cfg_ptr.CurrentUserName {
+			fmt.Printf("* %s (current)\n", user.Name)
+			continue
+		}
+		fmt.Printf("* %s\n", user.Name)
+	}
+	return nil
+}
+
 func (c *commands) run(s *state, cmd command) error {
 	handler, ok := c.command_handlers[cmd.name]
 	if !ok {

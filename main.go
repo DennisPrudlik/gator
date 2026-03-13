@@ -30,6 +30,8 @@ func main() {
 	c := commands{}
 	c.register("login", handlerLogin)
 	c.register("register", handlerRegister)
+	c.register("reset", handlerReset)
+	c.register("users", handlerUsers)
 	args := os.Args[1:]
 
 	if len(args) < 1 {
