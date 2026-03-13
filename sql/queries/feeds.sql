@@ -8,11 +8,21 @@ VALUES (
     $5,
     $6
 )
-RETURNING *;
+RETURNING id, created_at, updated_at, url, name, user_id, last_fetched_at;
 
 -- name: GetFeedByURL :one
-SELECT * FROM feeds
+SELECT id, created_at, updated_at, url, name, user_id, last_fetched_at FROM feeds
 WHERE url = $1;
+
+-- name: MarkFeedFetched :exec
+UPDATE feeds
+SET last_fetched_at = NOW(), updated_at = NOW()
+WHERE id = $1;
+
+-- name: GetNextFeedToFetch :one
+SELECT id, created_at, updated_at, url, name, user_id, last_fetched_at FROM feeds
+ORDER BY last_fetched_at NULLS FIRST, updated_at ASC
+LIMIT 1;
 
 -- name: GetFeeds :many
 SELECT
