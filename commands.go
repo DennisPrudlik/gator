@@ -96,6 +96,45 @@ func handlerAgg(s *state, cmd command) error {
 	return nil
 }
 
+func handlerAddFeed(s *state, cmd command) error {
+	if len(cmd.args) != 2 {
+		return fmt.Errorf("missing arguments")
+	}
+	user, err := s.db.GetUser(context.Background(), s.cfg_ptr.CurrentUserName)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.CreateFeed(context.Background(), database.CreateFeedParams{
+		Url:       cmd.args[1],
+		UserID:    user.ID,
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+		ID:        uuid.New(),
+		Name:      cmd.args[0],
+	})
+	if err != nil {
+		return err
+	}
+	fmt.Println("Feed added successfully")
+	return nil
+}
+
+func handlerFeeds(s *state, cmd command) error {
+	if len(cmd.args) != 0 {
+		return fmt.Errorf("feeds command takes no arguments")
+	}
+	feeds, err := s.db.GetFeeds(context.Background())
+	if err != nil {
+		return err
+	}
+	for _, feed := range feeds {
+		fmt.Printf("Name: %s\n", feed.FeedName)
+		fmt.Printf("URL: %s\n", feed.FeedUrl)
+		fmt.Printf("User: %s\n", feed.UserName)
+	}
+	return nil
+}
+
 func (c *commands) run(s *state, cmd command) error {
 	handler, ok := c.command_handlers[cmd.name]
 	if !ok {

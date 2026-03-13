@@ -33,6 +33,8 @@ func main() {
 	c.register("reset", handlerReset)
 	c.register("users", handlerUsers)
 	c.register("agg", handlerAgg)
+	c.register("addfeed", handlerAddFeed)
+	c.register("feeds", handlerFeeds)
 	args := os.Args[1:]
 
 	if len(args) < 1 {
