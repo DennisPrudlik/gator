@@ -25,6 +25,16 @@ type commands struct {
 	command_handlers map[string]func(*state, command) error
 }
 
+func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) error) func(*state, command) error {
+	return func(s *state, cmd command) error {
+		user, err := s.db.GetUser(context.Background(), s.cfg_ptr.CurrentUserName)
+		if err != nil {
+			return err
+		}
+		return handler(s, cmd, user)
+	}
+}
+
 func handlerLogin(s *state, cmd command) error {
 	if len(cmd.args) < 1 {
 		return fmt.Errorf("missing arguments")
@@ -96,15 +106,12 @@ func handlerAgg(s *state, cmd command) error {
 	return nil
 }
 
-func handlerAddFeed(s *state, cmd command) error {
+func handlerAddFeed(s *state, cmd command, user database.User) error {
 	if len(cmd.args) != 2 {
 		return fmt.Errorf("missing arguments")
 	}
-	user, err := s.db.GetUser(context.Background(), s.cfg_ptr.CurrentUserName)
-	if err != nil {
-		return err
-	}
-	_, err = s.db.CreateFeed(context.Background(), database.CreateFeedParams{
+	var err error
+	feed, err := s.db.CreateFeed(context.Background(), database.CreateFeedParams{
 		Url:       cmd.args[1],
 		UserID:    user.ID,
 		CreatedAt: time.Now().UTC(),
@@ -115,7 +122,73 @@ func handlerAddFeed(s *state, cmd command) error {
 	if err != nil {
 		return err
 	}
+	_, err = s.db.CreateFeedFollow(context.Background(), database.CreateFeedFollowParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+		UserID:    user.ID,
+		FeedID:    feed.ID,
+	})
+	if err != nil {
+		return err
+	}
 	fmt.Println("Feed added successfully")
+	return nil
+}
+
+func handlerFollow(s *state, cmd command, user database.User) error {
+	if len(cmd.args) != 1 {
+		return fmt.Errorf("follow command takes exactly one URL argument")
+	}
+	feed, err := s.db.GetFeedByURL(context.Background(), cmd.args[0])
+	if err != nil {
+		return err
+	}
+	feedFollow, err := s.db.CreateFeedFollow(context.Background(), database.CreateFeedFollowParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+		UserID:    user.ID,
+		FeedID:    feed.ID,
+	})
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Feed: %s\n", feedFollow.FeedName)
+	fmt.Printf("User: %s\n", feedFollow.UserName)
+	return nil
+}
+
+func handlerFollowing(s *state, cmd command, user database.User) error {
+	if len(cmd.args) != 0 {
+		return fmt.Errorf("following command takes no arguments")
+	}
+	feedFollows, err := s.db.GetFeedFollowsForUser(context.Background(), user.Name)
+	if err != nil {
+		return err
+	}
+	for _, feedFollow := range feedFollows {
+		fmt.Printf("* %s\n", feedFollow.FeedName)
+	}
+	return nil
+}
+
+func handlerUnfollow(s *state, cmd command, user database.User) error {
+	if len(cmd.args) != 1 {
+		return fmt.Errorf("unfollow command takes exactly one URL argument")
+	}
+	feed, err := s.db.GetFeedByURL(context.Background(), cmd.args[0])
+	if err != nil {
+		return err
+	}
+	err = s.db.DeleteFeedFollow(context.Background(), database.DeleteFeedFollowParams{
+		UserID: user.ID,
+		FeedID: feed.ID,
+	})
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Unfollowed: %s\n", feed.Name)
 	return nil
 }
 
